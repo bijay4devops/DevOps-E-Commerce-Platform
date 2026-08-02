@@ -1,4 +1,5 @@
 from app.extensions import db
+from datetime import datetime
 
 
 class User(db.Model):
@@ -14,8 +15,13 @@ class User(db.Model):
 
     created_at = db.Column(
         db.DateTime,
-        server_default=db.func.now()
+        default=datetime.utcnow
     )
 
-    def __repr__(self):
-        return f"<User {self.username}>"
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "username": self.username,
+            "email": self.email,
+            "created_at": self.created_at.isoformat()
+        }

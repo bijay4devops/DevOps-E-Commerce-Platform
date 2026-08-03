@@ -8,6 +8,7 @@ from app.models.user import User
 from app.models.category import Category
 from app.models.product import Product
 from app.models.order import Order
+from app.api.categories import category_bp
 
 # Import blueprints
 from app.api.auth import auth_bp
@@ -24,5 +25,6 @@ def create_app():
     bcrypt.init_app(app)
 
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
+    app.register_blueprint(category_bp, url_prefix="/api/categories")
 
     return app

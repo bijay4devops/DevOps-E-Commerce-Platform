@@ -1,12 +1,7 @@
-version: "3.9"
-
 services:
-
   mysql:
     image: mysql:8.4
-
     container_name: mysql-db
-
     restart: always
 
     environment:
@@ -22,22 +17,41 @@ services:
       - mysql_data:/var/lib/mysql
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
 
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot123"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   flask:
-
     build: .
-
     container_name: flask-app
-
     restart: always
+
+    # Prevent files created in bind mounts from being owned by root
+    user: "${UID}:${GID}"
+
+    working_dir: /app
+
+    env_file:
+      - .env
+
+    environment:
+      FLASK_APP: run.py
+      FLASK_ENV: development
+      PYTHONUNBUFFERED: 1
 
     ports:
       - "5000:5000"
 
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
 
-    env_file:
-      - .env
+    volumes:
+      - .:/app
+
+    command: python run.py
 
 volumes:
   mysql_data:

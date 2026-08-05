@@ -1,4 +1,3 @@
-from flask_bcrypt import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token
 
 from app.extensions import db
@@ -8,42 +7,49 @@ from app.models.user import User
 class AuthService:
 
     @staticmethod
-    def register(username, email, password):
+    def register(data):
 
-        user = User.query.filter_by(email=email).first()
+        # Check if username already exists
+        if User.query.filter_by(username=data["username"]).first():
+            return None, "Username already exists"
 
-        if user:
-            return {"message": "Email already exists"}, 409
+        # Check if email already exists
+        if User.query.filter_by(email=data["email"]).first():
+            return None, "Email already exists"
 
-        hashed_password = generate_password_hash(password).decode("utf-8")
-
-        new_user = User(
-            username=username,
-            email=email,
-            password=hashed_password
+        # Create new user
+        user = User(
+            username=data["username"],
+            email=data["email"],
+            role="customer"
         )
 
-        db.session.add(new_user)
+        # Hash password
+        user.set_password(data["password"])
+
+        db.session.add(user)
         db.session.commit()
 
-        return {
-            "message": "User registered successfully"
-        }, 201
+        return user, None
 
     @staticmethod
-    def login(email, password):
+    def login(data):
 
-        user = User.query.filter_by(email=email).first()
+        user = User.query.filter_by(
+            email=data["email"]
+        ).first()
 
         if not user:
-            return {"message": "Invalid credentials"}, 401
+            return None
 
-        if not check_password_hash(user.password, password):
-            return {"message": "Invalid credentials"}, 401
+        if not user.check_password(data["password"]):
+            return None
 
-        token = create_access_token(identity=str(user.id))
+        token = create_access_token(
+            identity=str(user.id)
+        )
 
         return {
             "token": token,
             "user": user.to_dict()
-        }, 200
+        }

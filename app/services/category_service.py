@@ -5,7 +5,8 @@ from app.models.category import Category
 class CategoryService:
 
     @staticmethod
-    def create(data):
+    def create_category(data):
+
         category = Category(
             name=data["name"],
             description=data.get("description")
@@ -14,34 +15,43 @@ class CategoryService:
         db.session.add(category)
         db.session.commit()
 
-        return category.to_dict(), 201
+        return category
 
     @staticmethod
-    def get_all():
-        categories = Category.query.all()
-        return [c.to_dict() for c in categories], 200
+    def get_all_categories():
+        return Category.query.all()
 
     @staticmethod
-    def get_by_id(category_id):
-        category = Category.query.get_or_404(category_id)
-        return category.to_dict(), 200
+    def get_category(category_id):
+        return Category.query.get(category_id)
 
     @staticmethod
-    def update(category_id, data):
-        category = Category.query.get_or_404(category_id)
+    def update_category(category_id, data):
 
-        category.name = data["name"]
-        category.description = data.get("description")
+        category = Category.query.get(category_id)
+
+        if not category:
+            return None
+
+        category.name = data.get("name", category.name)
+        category.description = data.get(
+            "description",
+            category.description
+        )
 
         db.session.commit()
 
-        return category.to_dict(), 200
+        return category
 
     @staticmethod
-    def delete(category_id):
-        category = Category.query.get_or_404(category_id)
+    def delete_category(category_id):
+
+        category = Category.query.get(category_id)
+
+        if not category:
+            return False
 
         db.session.delete(category)
         db.session.commit()
 
-        return {"message": "Category deleted"}, 200
+        return True

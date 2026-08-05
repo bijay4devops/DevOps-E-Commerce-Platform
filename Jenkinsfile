@@ -3,7 +3,12 @@ pipeline {
 
     environment {
         IMAGE_NAME = "devops-ecommerce"
-        IMAGE_TAG = "v1.${BUILD_NUMBER}"
+        IMAGE_TAG  = "v1.${BUILD_NUMBER}"
+    }
+
+    options {
+        timestamps()
+        ansiColor('xterm')
     }
 
     stages {
@@ -22,21 +27,40 @@ pipeline {
             }
         }
 
+        stage('Create Python Virtual Environment') {
+            steps {
+                sh '''
+                python3 -m venv venv
+                . venv/bin/activate
+                python -m pip install --upgrade pip
+                '''
+            }
+        }
+
         stage('Install Dependencies') {
             steps {
-                sh 'pip3 install -r requirements.txt'
+                sh '''
+                . venv/bin/activate
+                pip install -r requirements.txt
+                '''
             }
         }
 
         stage('Run Tests') {
             steps {
-                sh 'pytest tests/ || true'
+                sh '''
+                . venv/bin/activate
+                pytest tests/ || true
+                '''
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .'
+                sh '''
+                docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest
+                '''
             }
         }
 
@@ -45,9 +69,11 @@ pipeline {
                 sh 'docker images'
             }
         }
+
     }
 
     post {
+
         success {
             echo 'Build completed successfully!'
         }

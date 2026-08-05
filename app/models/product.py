@@ -38,7 +38,7 @@ class Product(db.Model):
         "Category",
         backref="products"
     )
-
+     
     def to_dict(self):
         return {
             "id": self.id,
@@ -50,4 +50,5 @@ class Product(db.Model):
             "category_id": self.category_id,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat()
-        }
+
+            }

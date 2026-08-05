@@ -1,57 +1,89 @@
 services:
+
   mysql:
     image: mysql:8.4
     container_name: mysql-db
     restart: always
 
+    env_file:
+      - .env
+
     environment:
-      MYSQL_ROOT_PASSWORD: root123
-      MYSQL_DATABASE: ecommerce_db
-      MYSQL_USER: ecommerce
-      MYSQL_PASSWORD: ecommerce123
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
 
     ports:
       - "3306:3306"
 
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
 
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot123"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
       timeout: 5s
       retries: 10
 
+    networks:
+      - ecommerce-network
+
   flask:
     build: .
+
+    image: devops-ecommerce:v1
+
     container_name: flask-app
+
     restart: always
-
-    # Prevent files created in bind mounts from being owned by root
-    user: "${UID}:${GID}"
-
-    working_dir: /app
-
-    env_file:
-      - .env
-
-    environment:
-      FLASK_APP: run.py
-      FLASK_ENV: development
-      PYTHONUNBUFFERED: 1
-
-    ports:
-      - "5000:5000"
 
     depends_on:
       mysql:
         condition: service_healthy
 
+    env_file:
+      - .env
+
+    ports:
+      - "5000:5000"
+
     volumes:
       - .:/app
 
-    command: python run.py
+    command: >
+      gunicorn
+      --bind 0.0.0.0:5000
+      --workers 4
+      --threads 2
+      run:app
+
+    networks:
+      - ecommerce-network
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+
+    container_name: phpmyadmin
+
+    restart: always
+
+    depends_on:
+      - mysql
+
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+
+    ports:
+      - "8080:80"
+
+    networks:
+      - ecommerce-network
 
 volumes:
   mysql_data:
+
+networks:
+  ecommerce-network:
+    driver: bridge

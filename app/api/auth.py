@@ -20,11 +20,17 @@ def register():
 
     data = request.get_json()
 
-    return AuthService.register(
-        data["username"],
-        data["email"],
-        data["password"]
-    )
+    user, error = AuthService.register(data)
+
+    if error:
+        return jsonify({
+            "message": error
+        }), 400
+
+    return jsonify({
+        "message": "User registered successfully",
+        "user": user.to_dict()
+    }), 201
 
 
 @auth_bp.route("/login", methods=["POST"])
@@ -32,10 +38,14 @@ def login():
 
     data = request.get_json()
 
-    return AuthService.login(
-        data["email"],
-        data["password"]
-    )
+    result = AuthService.login(data)
+
+    if not result:
+        return jsonify({
+            "message": "Invalid email or password"
+        }), 401
+
+    return jsonify(result), 200
 
 
 @auth_bp.route("/profile", methods=["GET"])
@@ -44,4 +54,4 @@ def profile():
 
     return jsonify({
         "logged_in_user": get_jwt_identity()
-    })
+    }), 200

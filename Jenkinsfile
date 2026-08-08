@@ -1,4 +1,3 @@
-```groovy
 pipeline {
     agent any
 
@@ -236,5 +235,5 @@ Check the stage that failed above.
         }
     }
 }
-```
+
 

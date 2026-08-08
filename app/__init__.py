@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 
 from app.config import Config
 from app.extensions import db, migrate, jwt, bcrypt
@@ -19,14 +19,16 @@ from app.api.orders import order_bp
 def create_app():
     app = Flask(__name__)
 
+    # Load configuration
     app.config.from_object(Config)
 
+    # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
     bcrypt.init_app(app)
 
-    # Register blueprints
+    # Register Blueprints
     app.register_blueprint(
         auth_bp,
         url_prefix="/api/auth"
@@ -46,5 +48,43 @@ def create_app():
         order_bp,
         url_prefix="/api/orders"
     )
+
+    # Root Endpoint
+    @app.route("/", methods=["GET"])
+    def home():
+        return jsonify({
+            "application": "DevOps E-Commerce Platform",
+            "status": "UP",
+            "version": "1.0.0",
+            "message": "Welcome to the DevOps E-Commerce REST API",
+            "endpoints": {
+                "health": "/api/auth/health",
+                "auth": "/api/auth",
+                "products": "/api/products",
+                "categories": "/api/categories",
+                "orders": "/api/orders"
+            }
+        }), 200
+
+    # Health Check
+    @app.route("/health", methods=["GET"])
+    def health():
+        return jsonify({
+            "status": "healthy"
+        }), 200
+
+    # 404 Error Handler
+    @app.errorhandler(404)
+    def not_found(error):
+        return jsonify({
+            "error": "Resource not found"
+        }), 404
+
+    # 500 Error Handler
+    @app.errorhandler(500)
+    def internal_error(error):
+        return jsonify({
+            "error": "Internal server error"
+        }), 500
 
     return app

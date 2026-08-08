@@ -41,3 +41,12 @@ migrations/__pycache__/
 
 # Swap files
 *.swp
+coverage.xml
+htmlcov/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# SonarQube
+.scannerwork/

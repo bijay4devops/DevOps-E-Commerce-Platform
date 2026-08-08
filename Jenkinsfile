@@ -5,7 +5,7 @@ pipeline {
         IMAGE_NAME = "devops-ecommerce"
         IMAGE_TAG  = "v1.${BUILD_NUMBER}"
 
-        SONAR_HOST_URL    = "http://15.252.107.160"
+    SONAR_HOST_URL    = "http://15.252.107.160"
         SONAR_PROJECT_KEY = "devops-ecommerce-platform"
         SONAR_SCANNER     = "/opt/sonar-scanner/bin/sonar-scanner"
     }

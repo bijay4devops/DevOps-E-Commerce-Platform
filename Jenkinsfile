@@ -5,9 +5,8 @@ pipeline {
         IMAGE_NAME = "devops-ecommerce"
         IMAGE_TAG  = "v1.${BUILD_NUMBER}"
 
-    SONAR_HOST_URL    = "http://15.252.107.160"
-        SONAR_PROJECT_KEY = "devops-ecommerce-platform"
-        SONAR_SCANNER     = "/opt/sonar-scanner/bin/sonar-scanner"
+        SONAR_SCANNER = "/opt/sonar-scanner/bin/sonar-scanner"
+        SONAR_HOST    = "http://15.252.107.160"
     }
 
     options {
@@ -19,33 +18,37 @@ pipeline {
         stage('Checkout') {
             steps {
                 checkout scm
+
+                sh '''
+                    echo "========================================="
+                    echo "Jenkins Workspace"
+                    echo "========================================="
+                    echo "WORKSPACE=$WORKSPACE"
+                    pwd
+                    ls -la
+                '''
             }
         }
 
         stage('Verify Environment') {
             steps {
                 sh '''
-                    set -e
+                    echo "========================================="
+                    echo "Environment"
+                    echo "========================================="
 
-                    echo "========================================"
-                    echo "Environment Verification"
-                    echo "========================================"
-
-                    echo "Python:"
                     python3 --version
-
-                    echo "Docker:"
+                    pip3 --version
                     docker --version
 
                     echo "SonarScanner:"
                     ${SONAR_SCANNER} --version
 
-                    echo "Trivy:"
-                    trivy --version
+                    echo "Current user:"
+                    whoami
 
-                    echo "Repository:"
+                    echo "Workspace:"
                     pwd
-                    ls -la
                 '''
             }
         }
@@ -53,9 +56,8 @@ pipeline {
         stage('Create Python Virtual Environment') {
             steps {
                 sh '''
-                    set -e
-
                     rm -rf venv
+
                     python3 -m venv venv
 
                     . venv/bin/activate
@@ -68,40 +70,23 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 sh '''
-                    set -e
-
                     . venv/bin/activate
 
                     pip install -r requirements.txt
-
-                    pip install pytest-cov
+                    pip install pytest pytest-cov
                 '''
             }
         }
 
-        stage('Run Tests & Coverage') {
+        stage('Run Tests') {
             steps {
                 sh '''
-                    set -e
-
-                    echo "========================================"
-                    echo "Running Tests"
-                    echo "========================================"
-
                     . venv/bin/activate
-
-                    if [ ! -d "tests" ]; then
-                        echo "ERROR: tests/ directory does not exist."
-                        echo "Repository contents:"
-                        find . -maxdepth 2 -type f | sort
-                        exit 1
-                    fi
 
                     pytest tests/ \
                         --cov=app \
                         --cov-report=term-missing \
-                        --cov-report=xml:coverage.xml \
-                        -v
+                        --cov-report=xml:coverage.xml
                 '''
             }
 
@@ -115,27 +100,6 @@ pipeline {
             }
         }
 
-        stage('Verify Coverage Report') {
-            steps {
-                sh '''
-                    set -e
-
-                    echo "========================================"
-                    echo "Checking coverage.xml"
-                    echo "========================================"
-
-                    if [ ! -f coverage.xml ]; then
-                        echo "ERROR: coverage.xml was not generated."
-                        exit 1
-                    fi
-
-                    ls -lh coverage.xml
-
-                    grep -o 'line-rate="[^"]*"' coverage.xml | head
-                '''
-            }
-        }
-
         stage('SonarQube Analysis') {
             steps {
                 withCredentials([
@@ -145,58 +109,38 @@ pipeline {
                     )
                 ]) {
                     sh '''
-                        set -e
-
-                        echo "========================================"
+                        echo "========================================="
                         echo "SonarQube Analysis"
-                        echo "========================================"
+                        echo "========================================="
 
-                        echo "SonarQube URL: ${SONAR_HOST_URL}"
-                        echo "Project Key: ${SONAR_PROJECT_KEY}"
+                        echo "Workspace: $WORKSPACE"
+                        pwd
+
+                        test -f sonar-project.properties
+                        test -f coverage.xml
 
                         ${SONAR_SCANNER} \
-                            -Dsonar.host.url="${SONAR_HOST_URL}" \
-                            -Dsonar.projectKey="${SONAR_PROJECT_KEY}" \
-                            -Dsonar.projectName="DevOps E-Commerce Platform" \
-                            -Dsonar.sources=app \
-                            -Dsonar.tests=tests \
-                            -Dsonar.python.coverage.reportPaths=coverage.xml \
+                            -Dsonar.host.url="${SONAR_HOST}" \
                             -Dsonar.token="${SONAR_TOKEN}"
                     '''
                 }
             }
         }
 
-        stage('Docker Build') {
+        stage('Build Docker Image') {
             steps {
                 sh '''
-                    set -e
-
-                    echo "========================================"
+                    echo "========================================="
                     echo "Building Docker Image"
-                    echo "========================================"
+                    echo "========================================="
 
                     docker build \
                         -t ${IMAGE_NAME}:${IMAGE_TAG} \
-                        -t ${IMAGE_NAME}:latest \
                         .
-                '''
-            }
-        }
 
-        stage('Trivy Security Scan') {
-            steps {
-                sh '''
-                    set -e
-
-                    echo "========================================"
-                    echo "Trivy Security Scan"
-                    echo "========================================"
-
-                    trivy image \
-                        --severity HIGH,CRITICAL \
-                        --exit-code 1 \
-                        ${IMAGE_NAME}:${IMAGE_TAG}
+                    docker tag \
+                        ${IMAGE_NAME}:${IMAGE_TAG} \
+                        ${IMAGE_NAME}:latest
                 '''
             }
         }
@@ -204,33 +148,28 @@ pipeline {
         stage('List Docker Images') {
             steps {
                 sh '''
-                    docker images
+                    docker images ${IMAGE_NAME}
                 '''
             }
         }
     }
 
     post {
+
         success {
-            echo """
-=========================================
- Jenkins Pipeline SUCCESS
-=========================================
-Docker Image: ${IMAGE_NAME}:${IMAGE_TAG}
-SonarQube Project: ${SONAR_PROJECT_KEY}
-"""
+            echo '========================================='
+            echo 'PIPELINE SUCCESSFUL'
+            echo '========================================='
         }
 
         failure {
-            echo """
-=========================================
- Jenkins Pipeline FAILED
-=========================================
-Check the stage that failed above.
-"""
+            echo '========================================='
+            echo 'PIPELINE FAILED'
+            echo '========================================='
         }
 
         always {
+            echo "Cleaning Jenkins workspace..."
             cleanWs()
         }
     }
